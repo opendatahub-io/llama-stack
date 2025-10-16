@@ -6,19 +6,21 @@
 
 from typing import Any
 
-from pydantic import BaseModel, Field, SecretStr
+from pydantic import Field, SecretStr
 
+from llama_stack.providers.utils.inference.model_registry import RemoteInferenceProviderConfig
 from llama_stack.schema_utils import json_schema_type
 
 
 @json_schema_type
-class DatabricksImplConfig(BaseModel):
-    url: str = Field(
+class DatabricksImplConfig(RemoteInferenceProviderConfig):
+    url: str | None = Field(
         default=None,
         description="The URL for the Databricks model serving endpoint",
     )
-    api_token: SecretStr = Field(
-        default=SecretStr(None),
+    auth_credential: SecretStr | None = Field(
+        default=None,
+        alias="api_token",
         description="The Databricks API token",
     )
 

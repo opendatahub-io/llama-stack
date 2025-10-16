@@ -14,8 +14,9 @@ from psycopg2.extras import Json, execute_values
 from pydantic import BaseModel, TypeAdapter
 
 from llama_stack.apis.common.errors import VectorStoreNotFoundError
-from llama_stack.apis.files.files import Files
-from llama_stack.apis.inference import InterleavedContent
+from llama_stack.apis.files import Files
+from llama_stack.apis.inference import Inference, InterleavedContent
+from llama_stack.apis.models import Models
 from llama_stack.apis.vector_dbs import VectorDB
 from llama_stack.apis.vector_io import (
     Chunk,
@@ -23,7 +24,7 @@ from llama_stack.apis.vector_io import (
     VectorIO,
 )
 from llama_stack.log import get_logger
-from llama_stack.providers.datatypes import Api, VectorDBsProtocolPrivate
+from llama_stack.providers.datatypes import VectorDBsProtocolPrivate
 from llama_stack.providers.utils.inference.prompt_adapter import (
     interleaved_content_as_str,
 )
@@ -342,17 +343,17 @@ class PGVectorVectorIOAdapter(OpenAIVectorStoreMixin, VectorIO, VectorDBsProtoco
     def __init__(
         self,
         config: PGVectorVectorIOConfig,
-        inference_api: Api.inference,
+        inference_api: Inference,
+        models_api: Models,
         files_api: Files | None = None,
     ) -> None:
+        super().__init__(files_api=files_api, kvstore=None)
         self.config = config
         self.inference_api = inference_api
+        self.models_api = models_api
         self.conn = None
         self.cache = {}
-        self.files_api = files_api
-        self.kvstore: KVStore | None = None
         self.vector_db_store = None
-        self.openai_vector_stores: dict[str, dict[str, Any]] = {}
         self.metadata_collection_name = "openai_vector_stores_metadata"
 
     async def initialize(self) -> None:
@@ -392,6 +393,8 @@ class PGVectorVectorIOAdapter(OpenAIVectorStoreMixin, VectorIO, VectorDBsProtoco
         if self.conn is not None:
             self.conn.close()
             log.info("Connection to PGVector database server closed")
+        # Clean up mixin resources (file batch tasks)
+        await super().shutdown()
 
     async def register_vector_db(self, vector_db: VectorDB) -> None:
         # Persist vector DB metadata in the KV store

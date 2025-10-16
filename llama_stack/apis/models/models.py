@@ -111,7 +111,7 @@ class Models(Protocol):
         """
         ...
 
-    @webmethod(route="/openai/v1/models", method="GET", level=LLAMA_STACK_API_V1)
+    @webmethod(route="/openai/v1/models", method="GET", level=LLAMA_STACK_API_V1, deprecated=True)
     async def openai_list_models(self) -> OpenAIListModelsResponse:
         """List models using the OpenAI API.
 
@@ -124,7 +124,9 @@ class Models(Protocol):
         self,
         model_id: str,
     ) -> Model:
-        """Get a model by its identifier.
+        """Get model.
+
+        Get a model by its identifier.
 
         :param model_id: The identifier of the model to get.
         :returns: A Model.
@@ -140,7 +142,9 @@ class Models(Protocol):
         metadata: dict[str, Any] | None = None,
         model_type: ModelType | None = None,
     ) -> Model:
-        """Register a model.
+        """Register model.
+
+        Register a model.
 
         :param model_id: The identifier of the model to register.
         :param provider_model_id: The identifier of the model in the provider.
@@ -156,7 +160,9 @@ class Models(Protocol):
         self,
         model_id: str,
     ) -> None:
-        """Unregister a model.
+        """Unregister model.
+
+        Unregister a model.
 
         :param model_id: The identifier of the model to unregister.
         """

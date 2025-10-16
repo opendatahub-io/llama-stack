@@ -138,16 +138,17 @@ class ChromaVectorIOAdapter(OpenAIVectorStoreMixin, VectorIO, VectorDBsProtocolP
         self,
         config: RemoteChromaVectorIOConfig | InlineChromaVectorIOConfig,
         inference_api: Api.inference,
+        models_apis: Api.models,
         files_api: Files | None,
     ) -> None:
+        super().__init__(files_api=files_api, kvstore=None)
         log.info(f"Initializing ChromaVectorIOAdapter with url: {config}")
         self.config = config
         self.inference_api = inference_api
+        self.models_api = models_apis
         self.client = None
         self.cache = {}
-        self.kvstore: KVStore | None = None
         self.vector_db_store = None
-        self.files_api = files_api
 
     async def initialize(self) -> None:
         self.kvstore = await kvstore_impl(self.config.kvstore)
@@ -168,7 +169,8 @@ class ChromaVectorIOAdapter(OpenAIVectorStoreMixin, VectorIO, VectorDBsProtocolP
         self.openai_vector_stores = await self._load_openai_vector_stores()
 
     async def shutdown(self) -> None:
-        pass
+        # Clean up mixin resources (file batch tasks)
+        await super().shutdown()
 
     async def register_vector_db(
         self,

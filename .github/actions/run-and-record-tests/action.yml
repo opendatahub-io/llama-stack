@@ -54,6 +54,10 @@ runs:
           SCRIPT_ARGS="$SCRIPT_ARGS --pattern ${{ inputs.pattern }}"
         fi
 
+        echo "=== Running command ==="
+        echo "uv run --no-sync ./scripts/integration-tests.sh $SCRIPT_ARGS"
+        echo ""
+
         uv run --no-sync ./scripts/integration-tests.sh $SCRIPT_ARGS | tee pytest-${{ inputs.inference-mode }}.log
 
 
@@ -62,11 +66,11 @@ runs:
       shell: bash
       run: |
         echo "Checking for recording changes"
-        git status --porcelain tests/integration/recordings/
+        git status --porcelain tests/integration/
 
-        if [[ -n $(git status --porcelain tests/integration/recordings/) ]]; then
+        if [[ -n $(git status --porcelain tests/integration/) ]]; then
           echo "New recordings detected, committing and pushing"
-          git add tests/integration/recordings/
+          git add tests/integration/
 
           git commit -m "Recordings update from CI (suite: ${{ inputs.suite }})"
           git fetch origin ${{ github.ref_name }}

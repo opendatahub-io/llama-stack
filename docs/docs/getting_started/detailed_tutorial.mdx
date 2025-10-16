@@ -86,9 +86,9 @@ docker run -it \
   --pull always \
   -p $LLAMA_STACK_PORT:$LLAMA_STACK_PORT \
   -v ~/.llama:/root/.llama \
+  -e OLLAMA_URL=http://host.docker.internal:11434 \
   llamastack/distribution-starter \
-  --port $LLAMA_STACK_PORT \
-  --env OLLAMA_URL=http://host.docker.internal:11434
+  --port $LLAMA_STACK_PORT
 ```
 Note to start the container with Podman, you can do the same but replace `docker` at the start of the command with
 `podman`. If you are using `podman` older than `4.7.0`, please also replace `host.docker.internal` in the `OLLAMA_URL`
@@ -106,9 +106,9 @@ docker run -it \
   -p $LLAMA_STACK_PORT:$LLAMA_STACK_PORT \
   -v ~/.llama:/root/.llama \
   --network=host \
+  -e OLLAMA_URL=http://localhost:11434 \
   llamastack/distribution-starter \
-  --port $LLAMA_STACK_PORT \
-  --env OLLAMA_URL=http://localhost:11434
+  --port $LLAMA_STACK_PORT
 ```
 :::
 You will see output like below:
@@ -164,7 +164,7 @@ Available Models
 ┏━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ model_type      ┃ identifier                          ┃ provider_resource_id                ┃ metadata                                  ┃ provider_id           ┃
 ┡━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━┩
-│ embedding       │ ollama/all-minilm:l6-v2             │ all-minilm:l6-v2                    │ {'embedding_dimension': 384.0}            │ ollama                │
+│ embedding       │ ollama/nomic-embed-text:v1.5        │ nomic-embed-text:v1.5               │ {'embedding_dimension': 768.0}            │ ollama                │
 ├─────────────────┼─────────────────────────────────────┼─────────────────────────────────────┼───────────────────────────────────────────┼───────────────────────┤
 │ ...             │ ...                                 │ ...                                 │                                           │ ...                   │
 ├─────────────────┼─────────────────────────────────────┼─────────────────────────────────────┼───────────────────────────────────────────┼───────────────────────┤

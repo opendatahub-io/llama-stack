@@ -17,6 +17,7 @@ from numpy.typing import NDArray
 from llama_stack.apis.common.errors import VectorStoreNotFoundError
 from llama_stack.apis.files import Files
 from llama_stack.apis.inference import Inference
+from llama_stack.apis.models import Models
 from llama_stack.apis.vector_dbs import VectorDB
 from llama_stack.apis.vector_io import (
     Chunk,
@@ -409,13 +410,19 @@ class SQLiteVecVectorIOAdapter(OpenAIVectorStoreMixin, VectorIO, VectorDBsProtoc
     and creates a cache of VectorDBWithIndex instances (each wrapping a SQLiteVecIndex).
     """
 
-    def __init__(self, config, inference_api: Inference, files_api: Files | None) -> None:
+    def __init__(
+        self,
+        config,
+        inference_api: Inference,
+        models_api: Models,
+        files_api: Files | None,
+    ) -> None:
+        super().__init__(files_api=files_api, kvstore=None)
         self.config = config
         self.inference_api = inference_api
-        self.files_api = files_api
+        self.models_api = models_api
         self.cache: dict[str, VectorDBWithIndex] = {}
-        self.openai_vector_stores: dict[str, dict[str, Any]] = {}
-        self.kvstore: KVStore | None = None
+        self.vector_db_store = None
 
     async def initialize(self) -> None:
         self.kvstore = await kvstore_impl(self.config.kvstore)
@@ -436,8 +443,8 @@ class SQLiteVecVectorIOAdapter(OpenAIVectorStoreMixin, VectorIO, VectorDBsProtoc
         await self.initialize_openai_vector_stores()
 
     async def shutdown(self) -> None:
-        # nothing to do since we don't maintain a persistent connection
-        pass
+        # Clean up mixin resources (file batch tasks)
+        await super().shutdown()
 
     async def list_vector_dbs(self) -> list[VectorDB]:
         return [v.vector_db for v in self.cache.values()]

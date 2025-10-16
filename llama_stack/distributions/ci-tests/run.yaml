@@ -159,8 +159,7 @@ providers:
     provider_type: inline::meta-reference
     config:
       service_name: "${env.OTEL_SERVICE_NAME:=\u200B}"
-      sinks: ${env.TELEMETRY_SINKS:=console,sqlite}
-      sqlite_db_path: ${env.SQLITE_STORE_DIR:=~/.llama/distributions/ci-tests}/trace_store.db
+      sinks: ${env.TELEMETRY_SINKS:=}
       otel_exporter_otlp_endpoint: ${env.OTEL_EXPORTER_OTLP_ENDPOINT:=}
   post_training:
   - provider_id: torchtune-cpu
@@ -224,6 +223,9 @@ metadata_store:
 inference_store:
   type: sqlite
   db_path: ${env.SQLITE_STORE_DIR:=~/.llama/distributions/ci-tests}/inference_store.db
+conversations_store:
+  type: sqlite
+  db_path: ${env.SQLITE_STORE_DIR:=~/.llama/distributions/ci-tests}/conversations.db
 models: []
 shields:
 - shield_id: llama-guard

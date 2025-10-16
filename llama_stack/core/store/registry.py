@@ -36,7 +36,7 @@ class DistributionRegistry(Protocol):
 
 
 REGISTER_PREFIX = "distributions:registry"
-KEY_VERSION = "v9"
+KEY_VERSION = "v10"
 KEY_FORMAT = f"{REGISTER_PREFIX}:{KEY_VERSION}::" + "{type}:{identifier}"
 
 
@@ -96,9 +96,11 @@ class DiskDistributionRegistry(DistributionRegistry):
 
     async def register(self, obj: RoutableObjectWithProvider) -> bool:
         existing_obj = await self.get(obj.type, obj.identifier)
-        # dont register if the object's providerid already exists
-        if existing_obj and existing_obj.provider_id == obj.provider_id:
-            return False
+        if existing_obj and existing_obj != obj:
+            raise ValueError(
+                f"Object of type '{obj.type}' and identifier '{obj.identifier}' already exists. "
+                "Unregister it first if you want to replace it."
+            )
 
         await self.kvstore.set(
             KEY_FORMAT.format(type=obj.type, identifier=obj.identifier),

@@ -11,6 +11,43 @@ from typing import Any, TypeVar
 from .strong_typing.schema import json_schema_type, register_schema  # noqa: F401
 
 
+class ExtraBodyField[T]:
+    """
+    Marker annotation for parameters that arrive via extra_body in the client SDK.
+
+    These parameters:
+    - Will NOT appear in the generated client SDK method signature
+    - WILL be documented in OpenAPI spec under x-llama-stack-extra-body-params
+    - MUST be passed via the extra_body parameter in client SDK calls
+    - WILL be available in server-side method signature with proper typing
+
+    Example:
+        ```python
+        async def create_openai_response(
+            self,
+            input: str,
+            model: str,
+            shields: Annotated[
+                list[str] | None, ExtraBodyField("List of shields to apply")
+            ] = None,
+        ) -> ResponseObject:
+            # shields is available here with proper typing
+            if shields:
+                print(f"Using shields: {shields}")
+        ```
+
+        Client usage:
+        ```python
+        client.responses.create(
+            input="hello", model="llama-3", extra_body={"shields": ["shield-1"]}
+        )
+        ```
+    """
+
+    def __init__(self, description: str | None = None):
+        self.description = description
+
+
 @dataclass
 class WebMethod:
     level: str | None = None
@@ -22,12 +59,12 @@ class WebMethod:
     raw_bytes_request_body: bool | None = False
     # A descriptive name of the corresponding span created by tracing
     descriptive_name: str | None = None
-    experimental: bool | None = False
     required_scope: str | None = None
     deprecated: bool | None = False
+    require_authentication: bool | None = True
 
 
-T = TypeVar("T", bound=Callable[..., Any])
+CallableT = TypeVar("CallableT", bound=Callable[..., Any])
 
 
 def webmethod(
@@ -39,10 +76,10 @@ def webmethod(
     response_examples: list[Any] | None = None,
     raw_bytes_request_body: bool | None = False,
     descriptive_name: str | None = None,
-    experimental: bool | None = False,
     required_scope: str | None = None,
     deprecated: bool | None = False,
-) -> Callable[[T], T]:
+    require_authentication: bool | None = True,
+) -> Callable[[CallableT], CallableT]:
     """
     Decorator that supplies additional metadata to an endpoint operation function.
 
@@ -50,11 +87,11 @@ def webmethod(
     :param public: True if the operation can be invoked without prior authentication.
     :param request_examples: Sample requests that the operation might take. Pass a list of objects, not JSON.
     :param response_examples: Sample responses that the operation might produce. Pass a list of objects, not JSON.
-    :param experimental: True if the operation is experimental and subject to change.
     :param required_scope: Required scope for this endpoint (e.g., 'monitoring.viewer').
+    :param require_authentication: Whether this endpoint requires authentication (default True).
     """
 
-    def wrap(func: T) -> T:
+    def wrap(func: CallableT) -> CallableT:
         webmethod_obj = WebMethod(
             route=route,
             method=method,
@@ -64,9 +101,9 @@ def webmethod(
             response_examples=response_examples,
             raw_bytes_request_body=raw_bytes_request_body,
             descriptive_name=descriptive_name,
-            experimental=experimental,
             required_scope=required_scope,
             deprecated=deprecated,
+            require_authentication=require_authentication if require_authentication is not None else True,
         )
 
         # Store all webmethods in a list to support multiple decorators

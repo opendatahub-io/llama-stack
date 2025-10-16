@@ -159,7 +159,6 @@ def make_mcp_server(required_auth_token: str | None = None, tools: dict[str, Cal
     import threading
     import time
 
-    import httpx
     import uvicorn
     from mcp.server.fastmcp import FastMCP
     from mcp.server.sse import SseServerTransport
@@ -170,6 +169,11 @@ def make_mcp_server(required_auth_token: str | None = None, tools: dict[str, Cal
     from llama_stack.log import get_logger
 
     server = FastMCP("FastMCP Test Server", log_level="WARNING")
+
+    # Silence verbose MCP server logs
+    import logging  # allow-direct-logging
+
+    logging.getLogger("mcp.server.lowlevel.server").setLevel(logging.WARNING)
 
     tools = tools or default_tools()
 
@@ -222,53 +226,49 @@ def make_mcp_server(required_auth_token: str | None = None, tools: dict[str, Cal
 
     def run_server():
         try:
-            logger.info(f"Starting MCP server on port {port}")
+            logger.debug(f"Starting MCP server on port {port}")
             server_instance.run()
-            logger.info(f"MCP server on port {port} has stopped")
+            logger.debug(f"MCP server on port {port} has stopped")
         except Exception as e:
             logger.error(f"MCP server failed to start on port {port}: {e}")
             raise
 
     # Start the server in a new thread
     server_thread = threading.Thread(target=run_server, daemon=True)
-    logger.info(f"Starting MCP server thread on port {port}")
+    logger.debug(f"Starting MCP server thread on port {port}")
     server_thread.start()
 
-    # Polling until the server is ready
-    timeout = 10
+    # Wait for the server thread to be running
+    # Note: We can't use a simple HTTP GET health check on /sse because it's an SSE endpoint
+    # that expects a long-lived connection, not a simple request/response
+    timeout = 2
     start_time = time.time()
 
     server_url = f"http://localhost:{port}/sse"
-    logger.info(f"Waiting for MCP server to be ready at {server_url}")
+    logger.debug(f"Waiting for MCP server thread to start on port {port}")
 
     while time.time() - start_time < timeout:
-        try:
-            response = httpx.get(server_url)
-            if response.status_code in [200, 401]:
-                logger.info(f"MCP server is ready on port {port} (status: {response.status_code})")
-                break
-        except httpx.RequestError as e:
-            logger.debug(f"Server not ready yet, retrying... ({e})")
-            pass
-        time.sleep(0.1)
+        if server_thread.is_alive():
+            # Give the server a moment to bind to the port
+            time.sleep(0.1)
+            logger.debug(f"MCP server is ready on port {port}")
+            break
+        time.sleep(0.05)
     else:
         # If we exit the loop due to timeout
-        logger.error(f"MCP server failed to start within {timeout} seconds on port {port}")
-        logger.error(f"Thread alive: {server_thread.is_alive()}")
-        if server_thread.is_alive():
-            logger.error("Server thread is still running but not responding to HTTP requests")
+        logger.error(f"MCP server thread failed to start within {timeout} seconds on port {port}")
 
     try:
         yield {"server_url": server_url}
     finally:
-        logger.info(f"Shutting down MCP server on port {port}")
+        logger.debug(f"Shutting down MCP server on port {port}")
         server_instance.should_exit = True
         time.sleep(0.5)
 
         # Force shutdown if still running
         if server_thread.is_alive():
             try:
-                logger.info("Force shutting down server thread")
+                logger.debug("Force shutting down server thread")
                 if hasattr(server_instance, "servers") and server_instance.servers:
                     for srv in server_instance.servers:
                         srv.close()

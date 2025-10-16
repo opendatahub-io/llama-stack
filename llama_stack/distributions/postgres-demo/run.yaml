@@ -86,14 +86,17 @@ inference_store:
   db: ${env.POSTGRES_DB:=llamastack}
   user: ${env.POSTGRES_USER:=llamastack}
   password: ${env.POSTGRES_PASSWORD:=llamastack}
+conversations_store:
+  type: sqlite
+  db_path: ${env.SQLITE_STORE_DIR:=~/.llama/distributions/postgres-demo}/conversations.db
 models:
 - metadata: {}
   model_id: ${env.INFERENCE_MODEL}
   provider_id: vllm-inference
   model_type: llm
 - metadata:
-    embedding_dimension: 384
-  model_id: all-MiniLM-L6-v2
+    embedding_dimension: 768
+  model_id: nomic-embed-text-v1.5
   provider_id: sentence-transformers
   model_type: embedding
 shields:

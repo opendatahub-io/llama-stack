@@ -58,25 +58,36 @@ class ListRoutesResponse(BaseModel):
 
 @runtime_checkable
 class Inspect(Protocol):
+    """Inspect
+
+    APIs for inspecting the Llama Stack service, including health status, available API routes with methods and implementing providers.
+    """
+
     @webmethod(route="/inspect/routes", method="GET", level=LLAMA_STACK_API_V1)
     async def list_routes(self) -> ListRoutesResponse:
-        """List all available API routes with their methods and implementing providers.
+        """List routes.
+
+        List all available API routes with their methods and implementing providers.
 
         :returns: Response containing information about all available routes.
         """
         ...
 
-    @webmethod(route="/health", method="GET", level=LLAMA_STACK_API_V1)
+    @webmethod(route="/health", method="GET", level=LLAMA_STACK_API_V1, require_authentication=False)
     async def health(self) -> HealthInfo:
-        """Get the current health status of the service.
+        """Get health status.
+
+        Get the current health status of the service.
 
         :returns: Health information indicating if the service is operational.
         """
         ...
 
-    @webmethod(route="/version", method="GET", level=LLAMA_STACK_API_V1)
+    @webmethod(route="/version", method="GET", level=LLAMA_STACK_API_V1, require_authentication=False)
     async def version(self) -> VersionInfo:
-        """Get the version of the service.
+        """Get version.
+
+        Get the version of the service.
 
         :returns: Version information containing the service version number.
         """
