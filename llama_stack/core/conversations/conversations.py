@@ -47,6 +47,13 @@ class ConversationServiceConfig(BaseModel):
     )
     policy: list[AccessRule] = []
 
+    def __init__(self, run_config):
+        super().__init__(
+            conversations_store=SqliteSqlStoreConfig(
+                db_path=(DISTRIBS_BASE_DIR / run_config.image_name / "conversations.db").as_posix()
+            )
+        )
+
 
 async def get_provider_impl(config: ConversationServiceConfig, deps: dict[Any, Any]):
     """Get the conversation service implementation."""
