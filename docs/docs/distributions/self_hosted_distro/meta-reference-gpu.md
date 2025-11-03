@@ -21,7 +21,6 @@ The `llamastack/distribution-meta-reference-gpu` distribution consists of the fo
 | inference | `inline::meta-reference` |
 | safety | `inline::llama-guard` |
 | scoring | `inline::basic`, `inline::llm-as-judge`, `inline::braintrust` |
-| telemetry | `inline::meta-reference` |
 | tool_runtime | `remote::brave-search`, `remote::tavily-search`, `inline::rag-runtime`, `remote::model-context-protocol` |
 | vector_io | `inline::faiss`, `remote::chromadb`, `remote::pgvector` |
 
@@ -80,12 +79,39 @@ docker run \
   --port $LLAMA_STACK_PORT
 ```
 
-### Via venv
+### Via Docker with Custom Run Configuration
 
-Make sure you have done `uv pip install llama-stack` and have the Llama Stack CLI available.
+You can also run the Docker container with a custom run configuration file by mounting it into the container:
 
 ```bash
-llama stack build --distro meta-reference-gpu --image-type venv
+# Set the path to your custom run.yaml file
+CUSTOM_RUN_CONFIG=/path/to/your/custom-run.yaml
+LLAMA_STACK_PORT=8321
+
+docker run \
+  -it \
+  --pull always \
+  --gpu all \
+  -p $LLAMA_STACK_PORT:$LLAMA_STACK_PORT \
+  -v ~/.llama:/root/.llama \
+  -v $CUSTOM_RUN_CONFIG:/app/custom-run.yaml \
+  -e RUN_CONFIG_PATH=/app/custom-run.yaml \
+  llamastack/distribution-meta-reference-gpu \
+  --port $LLAMA_STACK_PORT
+```
+
+**Note**: The run configuration must be mounted into the container before it can be used. The `-v` flag mounts your local file into the container, and the `RUN_CONFIG_PATH` environment variable tells the entrypoint script which configuration to use.
+
+Available run configurations for this distribution:
+- `run.yaml`
+- `run-with-safety.yaml`
+
+### Via venv
+
+Make sure you have the Llama Stack CLI available.
+
+```bash
+llama stack list-deps meta-reference-gpu | xargs -L1 uv pip install
 INFERENCE_MODEL=meta-llama/Llama-3.2-3B-Instruct \
 llama stack run distributions/meta-reference-gpu/run.yaml \
   --port 8321

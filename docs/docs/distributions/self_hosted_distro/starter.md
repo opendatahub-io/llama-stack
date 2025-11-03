@@ -26,7 +26,6 @@ The starter distribution consists of the following provider configurations:
 | inference | `remote::openai`, `remote::fireworks`, `remote::together`, `remote::ollama`, `remote::anthropic`, `remote::gemini`, `remote::groq`, `remote::sambanova`, `remote::vllm`, `remote::tgi`, `remote::cerebras`, `remote::llama-openai-compat`, `remote::nvidia`, `remote::hf::serverless`, `remote::hf::endpoint`, `inline::sentence-transformers` |
 | safety | `inline::llama-guard`                                                                                                                                                                                                                                                                                                                          |
 | scoring | `inline::basic`, `inline::llm-as-judge`, `inline::braintrust`                                                                                                                                                                                                                                                                                  |
-| telemetry | `inline::meta-reference`                                                                                                                                                                                                                                                                                                                       |
 | tool_runtime | `remote::brave-search`, `remote::tavily-search`, `inline::rag-runtime`, `remote::model-context-protocol`                                                                                                                                                                                                                                       |
 | vector_io | `inline::faiss`, `inline::sqlite-vec`, `inline::milvus`, `remote::chromadb`, `remote::pgvector`                                                                                                                                                                                                                                                 |
 
@@ -119,7 +118,7 @@ The following environment variables can be configured:
 
 ### Telemetry Configuration
 - `OTEL_SERVICE_NAME`: OpenTelemetry service name
-- `TELEMETRY_SINKS`: Telemetry sinks (default: `[]`)
+- `OTEL_EXPORTER_OTLP_ENDPOINT`: OpenTelemetry collector endpoint URL
 
 ## Enabling Providers
 
@@ -169,7 +168,11 @@ docker run \
 Ensure you have configured the starter distribution using the environment variables explained above.
 
 ```bash
-uv run --with llama-stack llama stack build --distro starter --image-type venv --run
+# Install dependencies for the starter distribution
+uv run --with llama-stack llama stack list-deps starter | xargs -L1 uv pip install
+
+# Run the server
+uv run --with llama-stack llama stack run starter
 ```
 
 ## Example Usage

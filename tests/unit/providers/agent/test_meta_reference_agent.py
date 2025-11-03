@@ -26,6 +26,20 @@ from llama_stack.providers.inline.agents.meta_reference.config import MetaRefere
 from llama_stack.providers.inline.agents.meta_reference.persistence import AgentInfo
 
 
+@pytest.fixture(autouse=True)
+def setup_backends(tmp_path):
+    """Register KV and SQL store backends for testing."""
+    from llama_stack.core.storage.datatypes import SqliteKVStoreConfig, SqliteSqlStoreConfig
+    from llama_stack.providers.utils.kvstore.kvstore import register_kvstore_backends
+    from llama_stack.providers.utils.sqlstore.sqlstore import register_sqlstore_backends
+
+    kv_path = str(tmp_path / "test_kv.db")
+    sql_path = str(tmp_path / "test_sql.db")
+
+    register_kvstore_backends({"kv_default": SqliteKVStoreConfig(db_path=kv_path)})
+    register_sqlstore_backends({"sql_default": SqliteSqlStoreConfig(db_path=sql_path)})
+
+
 @pytest.fixture
 def mock_apis():
     return {
@@ -40,15 +54,20 @@ def mock_apis():
 
 @pytest.fixture
 def config(tmp_path):
+    from llama_stack.core.storage.datatypes import KVStoreReference, ResponsesStoreReference
+    from llama_stack.providers.inline.agents.meta_reference.config import AgentPersistenceConfig
+
     return MetaReferenceAgentsImplConfig(
-        persistence_store={
-            "type": "sqlite",
-            "db_path": str(tmp_path / "test.db"),
-        },
-        responses_store={
-            "type": "sqlite",
-            "db_path": str(tmp_path / "test.db"),
-        },
+        persistence=AgentPersistenceConfig(
+            agent_state=KVStoreReference(
+                backend="kv_default",
+                namespace="agents",
+            ),
+            responses=ResponsesStoreReference(
+                backend="sql_default",
+                table_name="responses",
+            ),
+        )
     )
 
 
@@ -173,18 +192,18 @@ async def test_create_agent_session_persistence(agents_impl, sample_agent_config
     assert session_response.session_id is not None
 
     # Verify the session was stored
-    session = await agents_impl.get_agents_session(agent_id, session_response.session_id)
+    session = await agents_impl.get_agents_session(session_response.session_id, agent_id)
     assert session.session_name == "test_session"
     assert session.session_id == session_response.session_id
     assert session.started_at is not None
     assert session.turns == []
 
     # Delete the session
-    await agents_impl.delete_agents_session(agent_id, session_response.session_id)
+    await agents_impl.delete_agents_session(session_response.session_id, agent_id)
 
     # Verify the session was deleted
     with pytest.raises(ValueError):
-        await agents_impl.get_agents_session(agent_id, session_response.session_id)
+        await agents_impl.get_agents_session(session_response.session_id, agent_id)
 
 
 @pytest.mark.parametrize("enable_session_persistence", [True, False])
@@ -207,11 +226,11 @@ async def test_list_agent_sessions_persistence(agents_impl, sample_agent_config,
     assert session2.session_id in session_ids
 
     # Delete one session
-    await agents_impl.delete_agents_session(agent_id, session1.session_id)
+    await agents_impl.delete_agents_session(session1.session_id, agent_id)
 
     # Verify the session was deleted
     with pytest.raises(ValueError):
-        await agents_impl.get_agents_session(agent_id, session1.session_id)
+        await agents_impl.get_agents_session(session1.session_id, agent_id)
 
     # List sessions again
     sessions = await agents_impl.list_agent_sessions(agent_id)

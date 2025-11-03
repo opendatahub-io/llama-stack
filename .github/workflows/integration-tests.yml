@@ -4,13 +4,17 @@ run-name: Run the integration test suites from tests/integration in replay mode
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - 'release-[0-9]+.[0-9]+.x'
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
+      - 'release-[0-9]+.[0-9]+.x'
     types: [opened, synchronize, reopened]
     paths:
-      - 'llama_stack/**'
-      - '!llama_stack/ui/**'
+      - 'src/llama_stack/**'
+      - '!src/llama_stack/ui/**'
       - 'tests/**'
       - 'uv.lock'
       - 'pyproject.toml'
@@ -47,7 +51,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        client-type: [library, server]
+        client-type: [library, docker, server]
         # Use Python 3.13 only on nightly schedule (daily latest client test), otherwise use 3.12
         python-version: ${{ github.event.schedule == '0 0 * * *' && fromJSON('["3.12", "3.13"]') || fromJSON('["3.12"]') }}
         client-version: ${{ (github.event.schedule == '0 0 * * *' || github.event.inputs.test-all-client-versions == 'true') && fromJSON('["published", "latest"]') || fromJSON('["latest"]') }}
@@ -61,7 +65,7 @@ jobs:
               && fromJSON('[{"setup": "vllm", "suite": "base"}]')
             || github.event.inputs.test-setup == 'ollama-vision'
               && fromJSON('[{"setup": "ollama-vision", "suite": "vision"}]')
-            || fromJSON('[{"setup": "ollama", "suite": "base"}, {"setup": "ollama-vision", "suite": "vision"}]')
+            || fromJSON('[{"setup": "ollama", "suite": "base"}, {"setup": "ollama-vision", "suite": "vision"}, {"setup": "gpt", "suite": "responses"}]')
           }}
 
     steps:
@@ -82,7 +86,7 @@ jobs:
         env:
           OPENAI_API_KEY: dummy
         with:
-          stack-config: ${{ matrix.client-type == 'library' && 'ci-tests' || 'server:ci-tests' }}
+          stack-config: ${{ matrix.client-type == 'library' && 'ci-tests' || matrix.client-type == 'server' && 'server:ci-tests' || 'docker:ci-tests' }}
           setup: ${{ matrix.config.setup }}
           inference-mode: 'replay'
           suite: ${{ matrix.config.suite }}

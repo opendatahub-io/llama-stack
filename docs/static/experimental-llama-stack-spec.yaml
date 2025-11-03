@@ -1320,7 +1320,7 @@ components:
           enum:
             - model
             - shield
-            - vector_db
+            - vector_store
             - dataset
             - scoring_function
             - benchmark
@@ -1695,7 +1695,6 @@ components:
           description: The sampling strategy.
         max_tokens:
           type: integer
-          default: 0
           description: >-
             The maximum number of tokens that can be generated in the completion.
             The token count of your prompt plus max_tokens cannot exceed the model's
@@ -2086,7 +2085,7 @@ components:
           description: Type of the step in an agent turn.
           const: memory_retrieval
           default: memory_retrieval
-        vector_db_ids:
+        vector_store_ids:
           type: string
           description: >-
             The IDs of the vector databases to retrieve context from.
@@ -2099,7 +2098,7 @@ components:
         - turn_id
         - step_id
         - step_type
-        - vector_db_ids
+        - vector_store_ids
         - inserted_context
       title: MemoryRetrievalStep
       description: >-
@@ -2927,7 +2926,7 @@ components:
           enum:
             - model
             - shield
-            - vector_db
+            - vector_store
             - dataset
             - scoring_function
             - benchmark
@@ -4119,9 +4118,9 @@ tags:
   - name: Datasets
     description: ''
   - name: Eval
-    description: ''
-    x-displayName: >-
+    description: >-
       Llama Stack Evaluation API for running evaluations on model and agent candidates.
+    x-displayName: Evaluations
   - name: PostTraining (Coming Soon)
     description: ''
 x-tagGroups:

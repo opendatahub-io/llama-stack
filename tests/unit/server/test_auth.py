@@ -6,6 +6,7 @@
 
 import base64
 import json
+import logging  # allow-direct-logging
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -25,6 +26,13 @@ from llama_stack.core.server.auth import AuthenticationMiddleware, _has_required
 from llama_stack.core.server.auth_providers import (
     get_attributes_from_claims,
 )
+
+
+@pytest.fixture
+def suppress_auth_errors(caplog):
+    """Suppress expected ERROR/WARNING logs for tests that deliberately trigger authentication errors"""
+    caplog.set_level(logging.CRITICAL, logger="llama_stack.core.server.auth")
+    caplog.set_level(logging.CRITICAL, logger="llama_stack.core.server.auth_providers")
 
 
 class MockResponse:
@@ -237,20 +245,20 @@ def test_valid_http_authentication(http_client, valid_api_key):
 
 
 @patch("httpx.AsyncClient.post", new=mock_post_failure)
-def test_invalid_http_authentication(http_client, invalid_api_key):
+def test_invalid_http_authentication(http_client, invalid_api_key, suppress_auth_errors):
     response = http_client.get("/test", headers={"Authorization": f"Bearer {invalid_api_key}"})
     assert response.status_code == 401
     assert "Authentication failed" in response.json()["error"]["message"]
 
 
 @patch("httpx.AsyncClient.post", new=mock_post_exception)
-def test_http_auth_service_error(http_client, valid_api_key):
+def test_http_auth_service_error(http_client, valid_api_key, suppress_auth_errors):
     response = http_client.get("/test", headers={"Authorization": f"Bearer {valid_api_key}"})
     assert response.status_code == 401
     assert "Authentication service error" in response.json()["error"]["message"]
 
 
-def test_http_auth_request_payload(http_client, valid_api_key, mock_auth_endpoint):
+def test_http_auth_request_payload(http_client, valid_api_key, mock_auth_endpoint, suppress_auth_errors):
     with patch("httpx.AsyncClient.post") as mock_post:
         mock_response = MockResponse(200, {"message": "Authentication successful"})
         mock_post.return_value = mock_response
@@ -420,7 +428,7 @@ def test_valid_oauth2_authentication(oauth2_client, jwt_token_valid, mock_jwks_u
 
 
 @patch("httpx.AsyncClient.get", new=mock_jwks_response)
-def test_invalid_oauth2_authentication(oauth2_client, invalid_token):
+def test_invalid_oauth2_authentication(oauth2_client, invalid_token, suppress_auth_errors):
     response = oauth2_client.get("/test", headers={"Authorization": f"Bearer {invalid_token}"})
     assert response.status_code == 401
     assert "Invalid JWT token" in response.json()["error"]["message"]
@@ -465,7 +473,7 @@ def oauth2_client_with_jwks_token(oauth2_app_with_jwks_token):
 
 
 @patch("httpx.AsyncClient.get", new=mock_auth_jwks_response)
-def test_oauth2_with_jwks_token_expected(oauth2_client, jwt_token_valid):
+def test_oauth2_with_jwks_token_expected(oauth2_client, jwt_token_valid, suppress_auth_errors):
     response = oauth2_client.get("/test", headers={"Authorization": f"Bearer {jwt_token_valid}"})
     assert response.status_code == 401
 
@@ -515,6 +523,82 @@ def test_get_attributes_from_claims():
     assert set(attributes["roles"]) == {"my-user", "my-username"}
     assert set(attributes["teams"]) == {"my-team", "group1", "group2"}
     assert attributes["namespaces"] == ["my-tenant"]
+
+    # Test nested claims with dot notation (e.g., Keycloak resource_access structure)
+    claims = {
+        "sub": "user123",
+        "resource_access": {"llamastack": {"roles": ["inference_max", "admin"]}, "other-client": {"roles": ["viewer"]}},
+        "realm_access": {"roles": ["offline_access", "uma_authorization"]},
+    }
+    attributes = get_attributes_from_claims(
+        claims, {"resource_access.llamastack.roles": "roles", "realm_access.roles": "realm_roles"}
+    )
+    assert set(attributes["roles"]) == {"inference_max", "admin"}
+    assert set(attributes["realm_roles"]) == {"offline_access", "uma_authorization"}
+
+    # Test that dot notation takes precedence over literal keys with dots
+    claims = {
+        "my.dotted.key": "literal-value",
+        "my": {"dotted": {"key": "nested-value"}},
+    }
+    attributes = get_attributes_from_claims(claims, {"my.dotted.key": "test"})
+    assert attributes["test"] == ["nested-value"]
+
+    # Test that literal key works when nested traversal doesn't exist
+    claims = {
+        "my.dotted.key": "literal-value",
+    }
+    attributes = get_attributes_from_claims(claims, {"my.dotted.key": "test"})
+    assert attributes["test"] == ["literal-value"]
+
+    # Test missing nested paths are handled gracefully
+    claims = {
+        "sub": "user123",
+        "resource_access": {"other-client": {"roles": ["viewer"]}},
+    }
+    attributes = get_attributes_from_claims(
+        claims,
+        {
+            "resource_access.llamastack.roles": "roles",  # Missing nested path
+            "resource_access.missing.key": "missing_attr",  # Missing nested path
+            "completely.missing.path": "another_missing",  # Completely missing
+            "sub": "username",  # Existing path
+        },
+    )
+    # Only the existing claim should be in attributes
+    assert attributes["username"] == ["user123"]
+    assert "roles" not in attributes
+    assert "missing_attr" not in attributes
+    assert "another_missing" not in attributes
+
+    # Test mixture of flat and nested claims paths
+    claims = {
+        "sub": "user456",
+        "flat_key": "flat-value",
+        "scope": "read write admin",
+        "resource_access": {"app1": {"roles": ["role1", "role2"]}, "app2": {"roles": ["role3"]}},
+        "groups": ["group1", "group2"],
+        "metadata": {"tenant": "tenant1", "region": "us-west"},
+    }
+    attributes = get_attributes_from_claims(
+        claims,
+        {
+            "sub": "user_id",  # Flat string
+            "scope": "permissions",  # Flat string with spaces
+            "groups": "teams",  # Flat list
+            "resource_access.app1.roles": "app1_roles",  # Nested list
+            "resource_access.app2.roles": "app2_roles",  # Nested list
+            "metadata.tenant": "tenant",  # Nested string
+            "metadata.region": "region",  # Nested string
+        },
+    )
+    assert attributes["user_id"] == ["user456"]
+    assert set(attributes["permissions"]) == {"read", "write", "admin"}
+    assert set(attributes["teams"]) == {"group1", "group2"}
+    assert set(attributes["app1_roles"]) == {"role1", "role2"}
+    assert attributes["app2_roles"] == ["role3"]
+    assert attributes["tenant"] == ["tenant1"]
+    assert attributes["region"] == ["us-west"]
 
 
 # TODO: add more tests for oauth2 token provider
@@ -650,21 +734,21 @@ def test_valid_introspection_authentication(introspection_client, valid_api_key)
 
 
 @patch("httpx.AsyncClient.post", new=mock_introspection_inactive)
-def test_inactive_introspection_authentication(introspection_client, invalid_api_key):
+def test_inactive_introspection_authentication(introspection_client, invalid_api_key, suppress_auth_errors):
     response = introspection_client.get("/test", headers={"Authorization": f"Bearer {invalid_api_key}"})
     assert response.status_code == 401
     assert "Token not active" in response.json()["error"]["message"]
 
 
 @patch("httpx.AsyncClient.post", new=mock_introspection_invalid)
-def test_invalid_introspection_authentication(introspection_client, invalid_api_key):
+def test_invalid_introspection_authentication(introspection_client, invalid_api_key, suppress_auth_errors):
     response = introspection_client.get("/test", headers={"Authorization": f"Bearer {invalid_api_key}"})
     assert response.status_code == 401
     assert "Not JSON" in response.json()["error"]["message"]
 
 
 @patch("httpx.AsyncClient.post", new=mock_introspection_failed)
-def test_failed_introspection_authentication(introspection_client, invalid_api_key):
+def test_failed_introspection_authentication(introspection_client, invalid_api_key, suppress_auth_errors):
     response = introspection_client.get("/test", headers={"Authorization": f"Bearer {invalid_api_key}"})
     assert response.status_code == 401
     assert "Token introspection failed: 500" in response.json()["error"]["message"]
@@ -881,20 +965,22 @@ def test_valid_kubernetes_auth_authentication(kubernetes_auth_client, valid_toke
 
 
 @patch("httpx.AsyncClient.post", new=mock_kubernetes_selfsubjectreview_failure)
-def test_invalid_kubernetes_auth_authentication(kubernetes_auth_client, invalid_token):
+def test_invalid_kubernetes_auth_authentication(kubernetes_auth_client, invalid_token, suppress_auth_errors):
     response = kubernetes_auth_client.get("/test", headers={"Authorization": f"Bearer {invalid_token}"})
     assert response.status_code == 401
     assert "Invalid token" in response.json()["error"]["message"]
 
 
 @patch("httpx.AsyncClient.post", new=mock_kubernetes_selfsubjectreview_http_error)
-def test_kubernetes_auth_http_error(kubernetes_auth_client, valid_token):
+def test_kubernetes_auth_http_error(kubernetes_auth_client, valid_token, suppress_auth_errors):
     response = kubernetes_auth_client.get("/test", headers={"Authorization": f"Bearer {valid_token}"})
     assert response.status_code == 401
     assert "Token validation failed" in response.json()["error"]["message"]
 
 
-def test_kubernetes_auth_request_payload(kubernetes_auth_client, valid_token, mock_kubernetes_api_server):
+def test_kubernetes_auth_request_payload(
+    kubernetes_auth_client, valid_token, mock_kubernetes_api_server, suppress_auth_errors
+):
     with patch("httpx.AsyncClient.post") as mock_post:
         mock_response = MockResponse(
             200,

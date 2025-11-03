@@ -31,3 +31,7 @@ CLAUDE.md
 .claude/
 docs/.docusaurus/
 docs/node_modules/
+docs/static/imported-files/
+docs/docs/api-deprecated/
+docs/docs/api-experimental/
+docs/docs/api/
