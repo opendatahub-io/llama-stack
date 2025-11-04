@@ -1756,7 +1756,7 @@ wheels = [
 
 [[package]]
 name = "llama-stack"
-version = "0.3.0rc2+rhai0"
+version = "0.3.0rc3+rhai0"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
