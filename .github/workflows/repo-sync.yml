@@ -1,0 +1,120 @@
+name: Sync Upstream
+
+run-name: Sync main with llamastack/llama-stack
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    env:
+      UPSTREAM_REPO: llamastack/llama-stack
+      UPSTREAM_BRANCH: main
+      DOWNSTREAM_BRANCH: main
+      SYNC_BRANCH: automation/sync-upstream
+    steps:
+      - name: Check out downstream repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          fetch-depth: 0
+          ref: ${{ env.DOWNSTREAM_BRANCH }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch upstream
+        env:
+          UPSTREAM_URL: https://github.com/${{ env.UPSTREAM_REPO }}.git
+        run: |
+          set -eo pipefail
+          if git remote get-url upstream >/dev/null 2>&1; then
+            git remote set-url upstream "${UPSTREAM_URL}"
+          else
+            git remote add upstream "${UPSTREAM_URL}"
+          fi
+          git fetch origin "${DOWNSTREAM_BRANCH}" --prune
+          git fetch upstream "${UPSTREAM_BRANCH}" --prune
+          git fetch upstream --tags --prune
+
+      - name: Prepare sync branch
+        run: |
+          set -eo pipefail
+          git reset --hard "origin/${DOWNSTREAM_BRANCH}"
+          git checkout -B "${SYNC_BRANCH}" "origin/${DOWNSTREAM_BRANCH}"
+
+      - name: Merge upstream changes
+        id: merge_upstream
+        run: |
+          set -eo pipefail
+          git merge --no-edit "upstream/${UPSTREAM_BRANCH}"
+          ahead=$(git rev-list --count "origin/${DOWNSTREAM_BRANCH}..HEAD")
+          if [ "${ahead}" -gt 0 ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push sync branch
+        if: steps.merge_upstream.outputs.changed == 'true'
+        run: |
+          set -eo pipefail
+          git push --force --set-upstream origin "${SYNC_BRANCH}"
+
+      - name: Create or update pull request
+        if: steps.merge_upstream.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eo pipefail
+          owner="${GITHUB_REPOSITORY%%/*}"
+          pr_number=$(gh api "repos/${GITHUB_REPOSITORY}/pulls" -X GET -f state=open -f head="${owner}:${SYNC_BRANCH}" --jq '.[0].number' || true)
+          if [ -z "${pr_number}" ]; then
+            pr_number=$(gh api "repos/${GITHUB_REPOSITORY}/pulls" -X POST \
+              -f title="Sync upstream ${UPSTREAM_BRANCH} into ${DOWNSTREAM_BRANCH}" \
+              -f body="Automated upstream sync triggered by workflow run [${GITHUB_RUN_ID}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})." \
+              -f head="${owner}:${SYNC_BRANCH}" \
+              -f base="${DOWNSTREAM_BRANCH}" \
+              --jq '.number')
+            echo "Created pull request #${pr_number}."
+          else
+            echo "Pull request #${pr_number} already open for ${SYNC_BRANCH}; updated branch pushed."
+          fi
+
+      - name: Push tags to downstream
+        run: |
+          set -eo pipefail
+          git push origin --tags
+
+      - name: Cleanup sync branch when up to date
+        if: steps.merge_upstream.outputs.changed == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eo pipefail
+          git fetch origin --prune
+          owner="${GITHUB_REPOSITORY%%/*}"
+          pr_number=$(gh api "repos/${GITHUB_REPOSITORY}/pulls" -X GET -f state=open -f head="${owner}:${SYNC_BRANCH}" --jq '.[0].number' || true)
+          if [ -z "${pr_number}" ]; then
+            if git show-ref --verify --quiet "refs/remotes/origin/${SYNC_BRANCH}"; then
+              git push origin ":${SYNC_BRANCH}"
+              echo "Deleted remote branch ${SYNC_BRANCH}."
+            else
+              echo "Sync branch ${SYNC_BRANCH} not found on origin."
+            fi
+          else
+            echo "Skipping deletion; pull request #${pr_number} still exists."
+          fi
