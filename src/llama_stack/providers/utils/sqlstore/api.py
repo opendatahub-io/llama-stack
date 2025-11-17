@@ -10,7 +10,7 @@ from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel
 
-from llama_stack.apis.common.responses import PaginatedResponse
+from llama_stack_api import PaginatedResponse
 
 
 class ColumnType(Enum):
@@ -44,6 +44,18 @@ class SqlStore(Protocol):
     async def insert(self, table: str, data: Mapping[str, Any] | Sequence[Mapping[str, Any]]) -> None:
         """
         Insert a row or batch of rows into a table.
+        """
+        pass
+
+    async def upsert(
+        self,
+        table: str,
+        data: Mapping[str, Any],
+        conflict_columns: list[str],
+        update_columns: list[str] | None = None,
+    ) -> None:
+        """
+        Insert a row and update specified columns when conflicts occur.
         """
         pass
 
