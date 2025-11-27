@@ -7,7 +7,7 @@ required-version = ">=0.7.0"
 
 [project]
 name = "llama_stack"
-version = "0.3.3"
+version = "0.3.3+rhai0"
 authors = [{ name = "Meta Llama", email = "llama-oss@meta.com" }]
 description = "Llama Stack"
 readme = "README.md"
@@ -37,7 +37,7 @@ dependencies = [
     "pyjwt[crypto]>=2.10.0",                          # Pull crypto to support RS256 for jwt. Requires 2.10.0+ for ssl_context support.
     "pydantic>=2.11.9",
     "rich",
-    "starlette",
+    "starlette>=0.49.1",
     "termcolor",
     "tiktoken",
     "pillow",
