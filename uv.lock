@@ -1766,7 +1766,7 @@ wheels = [
 
 [[package]]
 name = "llama-stack"
-version = "0.3.4+rhai0"
+version = "0.3.5"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -1899,8 +1899,8 @@ requires-dist = [
     { name = "httpx" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "jsonschema" },
-    { name = "llama-stack-client", specifier = ">=0.3.4" },
-    { name = "llama-stack-client", marker = "extra == 'ui'", specifier = ">=0.3.4" },
+    { name = "llama-stack-client", specifier = "==0.3.5" },
+    { name = "llama-stack-client", marker = "extra == 'ui'", specifier = "==0.3.5" },
     { name = "openai", specifier = ">=1.107" },
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.30.0" },
     { name = "opentelemetry-sdk", specifier = ">=1.30.0" },
@@ -2006,7 +2006,7 @@ unit = [
 
 [[package]]
 name = "llama-stack-client"
-version = "0.3.4"
+version = "0.3.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -2025,9 +2025,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6a/10/9c198c62e720c647a01506f40ba4e058a5b2a23c947fab1827eb096a94f2/llama_stack_client-0.3.4.tar.gz", hash = "sha256:6afbd10b152911a044e8d038e58981425ce0a34510da3e31cdd3103516e27688", size = 335668, upload-time = "2025-12-03T18:59:25.48Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/34/ff/b4bb891249379849e6e273a6254998c7e08562613ca4020817af2da9498e/llama_stack_client-0.3.5.tar.gz", hash = "sha256:2d954429347e920038709ae3e026c06f336ce570bd41245fc4e1e54c78879485", size = 335659, upload-time = "2025-12-15T14:10:16.444Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ae/b9/bcc815cee68ef87635edf72f9454dd35cef8492d2670f5a6b229b5913f0b/llama_stack_client-0.3.4-py3-none-any.whl", hash = "sha256:949c0a6c9a1c925a2b0d930d85b6485bb8d264ba68d02f36aca3c2539cb7b893", size = 425244, upload-time = "2025-12-03T18:59:24.293Z" },
+    { url = "https://files.pythonhosted.org/packages/4d/10/84a4f0ef1cc13f44a692e55bed6a55792671e5320c95a8fd581e02848d61/llama_stack_client-0.3.5-py3-none-any.whl", hash = "sha256:b98acdc660d60839da8b71d5ae59531ba7f059e3e9656ca5ca20edca70f7d6a2", size = 425244, upload-time = "2025-12-15T14:10:14.726Z" },
 ]
 
 [[package]]
