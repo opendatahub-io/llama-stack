@@ -1989,7 +1989,7 @@ wheels = [
 
 [[package]]
 name = "llama-stack"
-version = "0.4.0rc3"
+version = "0.4.0rc4"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -2294,7 +2294,7 @@ unit = [
 
 [[package]]
 name = "llama-stack-api"
-version = "0.4.0rc3"
+version = "0.4.0rc4"
 source = { editable = "src/llama_stack_api" }
 dependencies = [
     { name = "fastapi" },
