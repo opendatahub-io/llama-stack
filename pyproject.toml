@@ -7,7 +7,7 @@ required-version = ">=0.7.0"
 
 [project]
 name = "llama_stack"
-version = "0.4.0rc3"
+version = "0.4.0rc4"
 authors = [{ name = "Meta Llama", email = "llama-oss@meta.com" }]
 description = "Llama Stack"
 readme = "README.md"
