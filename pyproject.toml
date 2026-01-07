@@ -50,6 +50,7 @@ dependencies = [
     "aiosqlite>=0.21.0",                      # server - for metadata store
     "asyncpg",                                # for metadata store
     "tornado>=6.5.3",
+    "urllib3>=2.6.0",
 ]
 
 [project.optional-dependencies]
