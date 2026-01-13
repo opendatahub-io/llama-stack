@@ -25,7 +25,7 @@ import yaml
 from llama_stack_client import LlamaStackClient
 from openai import OpenAI
 
-from llama_stack.core.datatypes import VectorStoresConfig
+from llama_stack.core.datatypes import QualifiedModel, VectorStoresConfig
 from llama_stack.core.library_client import LlamaStackAsLibraryClient
 from llama_stack.core.stack import run_config_from_adhoc_config_spec
 from llama_stack.env import get_env_or_fail
@@ -123,7 +123,6 @@ def stop_server_on_port(port: int, timeout: float = 10.0) -> None:
 
 
 def get_provider_data():
-    # TODO: this needs to be generalized so each provider can have a sample provider data just
     # like sample run config on which we can do replace_env_vars()
     keymap = {
         "TAVILY_SEARCH_API_KEY": "tavily_search_api_key",
@@ -243,7 +242,6 @@ def instantiate_llama_stack_client(session):
         # Strip the "server:" prefix first
         config_part = config[7:]  # len("server:") == 7
 
-        # Check for :: (distro::runfile format)
         if "::" in config_part:
             config_name = config_part
             port = int(os.environ.get("LLAMA_STACK_PORT", DEFAULT_PORT))
@@ -260,7 +258,6 @@ def instantiate_llama_stack_client(session):
             print(f"Forcing restart of the server on port {port}")
             stop_server_on_port(port)
 
-        # Check if port is available
         if is_port_available(port):
             print(f"Starting llama stack server with config '{config_name}' on port {port}...")
 
@@ -307,7 +304,10 @@ def instantiate_llama_stack_client(session):
         # --stack-config bypasses template so need this to set default embedding model
         if "vector_io" in config and "inference" in config:
             run_config.vector_stores = VectorStoresConfig(
-                embedding_model_id="inline::sentence-transformers/nomic-ai/nomic-embed-text-v1.5"
+                default_embedding_model=QualifiedModel(
+                    provider_id="inline::sentence-transformers",
+                    model_id="nomic-ai/nomic-embed-text-v1.5",
+                )
             )
 
         run_config_file = tempfile.NamedTemporaryFile(delete=False, suffix=".yaml")
