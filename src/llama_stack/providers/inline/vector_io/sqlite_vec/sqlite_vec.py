@@ -5,7 +5,6 @@
 # the root directory of this source tree.
 
 import asyncio
-import json
 import re
 import sqlite3
 import struct
@@ -24,7 +23,6 @@ from llama_stack.providers.utils.memory.vector_store import (
     EmbeddingIndex,
     VectorStoreWithIndex,
 )
-from llama_stack.providers.utils.vector_io import load_embedded_chunk_with_backward_compat
 from llama_stack.providers.utils.vector_io.vector_utils import WeightedInMemoryAggregator
 from llama_stack_api import (
     EmbeddedChunk,
@@ -237,8 +235,7 @@ class SQLiteVecIndex(EmbeddingIndex):
             if score < score_threshold:
                 continue
             try:
-                chunk_data = json.loads(chunk_json)
-                embedded_chunk = load_embedded_chunk_with_backward_compat(chunk_data)
+                embedded_chunk = EmbeddedChunk.model_validate_json(chunk_json)
             except Exception as e:
                 logger.error(f"Error parsing chunk JSON for id {_id}: {e}")
                 continue
@@ -279,8 +276,7 @@ class SQLiteVecIndex(EmbeddingIndex):
             if score > -score_threshold:
                 continue
             try:
-                chunk_data = json.loads(chunk_json)
-                embedded_chunk = load_embedded_chunk_with_backward_compat(chunk_data)
+                embedded_chunk = EmbeddedChunk.model_validate_json(chunk_json)
             except Exception as e:
                 logger.error(f"Error parsing chunk JSON for id {_id}: {e}")
                 continue

@@ -17,7 +17,6 @@ from llama_stack.log import get_logger
 from llama_stack.providers.inline.vector_io.chroma import ChromaVectorIOConfig as InlineChromaVectorIOConfig
 from llama_stack.providers.utils.memory.openai_vector_store_mixin import OpenAIVectorStoreMixin
 from llama_stack.providers.utils.memory.vector_store import ChunkForDeletion, EmbeddingIndex, VectorStoreWithIndex
-from llama_stack.providers.utils.vector_io import load_embedded_chunk_with_backward_compat
 from llama_stack.providers.utils.vector_io.vector_utils import WeightedInMemoryAggregator
 from llama_stack_api import (
     EmbeddedChunk,
@@ -61,12 +60,10 @@ class ChromaIndex(EmbeddingIndex):
     async def initialize(self):
         pass
 
-    async def add_chunks(self, chunks: list[EmbeddedChunk]):
-        if not chunks:
-            return
-
-        # Extract embeddings directly from chunks (already list[float])
-        embeddings = [chunk.embedding for chunk in chunks]
+    async def add_chunks(self, chunks: list[EmbeddedChunk], embeddings: NDArray):
+        assert len(chunks) == len(embeddings), (
+            f"Chunk length {len(chunks)} does not match embedding length {len(embeddings)}"
+        )
 
         ids = [f"{c.metadata.get('document_id', '')}:{c.chunk_id}" for c in chunks]
         await maybe_await(
@@ -87,7 +84,7 @@ class ChromaIndex(EmbeddingIndex):
         for dist, doc in zip(distances, documents, strict=False):
             try:
                 doc = json.loads(doc)
-                chunk = load_embedded_chunk_with_backward_compat(doc)
+                chunk = EmbeddedChunk(**doc)
             except Exception:
                 log.exception(f"Failed to parse document: {doc}")
                 continue
@@ -142,7 +139,7 @@ class ChromaIndex(EmbeddingIndex):
 
         for dist, doc in zip(distances, documents, strict=False):
             doc_data = json.loads(doc)
-            chunk = load_embedded_chunk_with_backward_compat(doc_data)
+            chunk = EmbeddedChunk(**doc_data)
 
             score = 1.0 / (1.0 + float(dist)) if dist is not None else 1.0
 

@@ -22,7 +22,6 @@ from llama_stack.providers.utils.memory.vector_store import (
     EmbeddingIndex,
     VectorStoreWithIndex,
 )
-from llama_stack.providers.utils.vector_io import load_embedded_chunk_with_backward_compat
 from llama_stack.providers.utils.vector_io.vector_utils import sanitize_collection_name
 from llama_stack_api import (
     EmbeddedChunk,
@@ -58,19 +57,20 @@ class WeaviateIndex(EmbeddingIndex):
     async def initialize(self):
         pass
 
-    async def add_chunks(self, chunks: list[EmbeddedChunk]):
-        if not chunks:
-            return
+    async def add_chunks(self, chunks: list[EmbeddedChunk], embeddings: NDArray):
+        assert len(chunks) == len(embeddings), (
+            f"Chunk length {len(chunks)} does not match embedding length {len(embeddings)}"
+        )
 
         data_objects = []
-        for chunk in chunks:
+        for chunk, embedding in zip(chunks, embeddings, strict=False):
             data_objects.append(
                 wvc.data.DataObject(
                     properties={
                         "chunk_id": chunk.chunk_id,
                         "chunk_content": chunk.model_dump_json(),
                     },
-                    vector=chunk.embedding,  # Already a list[float]
+                    vector=embedding.tolist(),
                 )
             )
 
@@ -116,7 +116,7 @@ class WeaviateIndex(EmbeddingIndex):
             chunk_json = doc.properties["chunk_content"]
             try:
                 chunk_dict = json.loads(chunk_json)
-                chunk = load_embedded_chunk_with_backward_compat(chunk_dict)
+                chunk = EmbeddedChunk(**chunk_dict)
             except Exception:
                 log.exception(f"Failed to parse document: {chunk_json}")
                 continue
@@ -176,7 +176,7 @@ class WeaviateIndex(EmbeddingIndex):
             chunk_json = doc.properties["chunk_content"]
             try:
                 chunk_dict = json.loads(chunk_json)
-                chunk = load_embedded_chunk_with_backward_compat(chunk_dict)
+                chunk = EmbeddedChunk(**chunk_dict)
             except Exception:
                 log.exception(f"Failed to parse document: {chunk_json}")
                 continue
@@ -245,7 +245,7 @@ class WeaviateIndex(EmbeddingIndex):
             chunk_json = doc.properties["chunk_content"]
             try:
                 chunk_dict = json.loads(chunk_json)
-                chunk = load_embedded_chunk_with_backward_compat(chunk_dict)
+                chunk = EmbeddedChunk(**chunk_dict)
             except Exception:
                 log.exception(f"Failed to parse document: {chunk_json}")
                 continue
