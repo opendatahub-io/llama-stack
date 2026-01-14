@@ -123,6 +123,7 @@ def stop_server_on_port(port: int, timeout: float = 10.0) -> None:
 
 
 def get_provider_data():
+    # TODO: this needs to be generalized so each provider can have a sample provider data just
     # like sample run config on which we can do replace_env_vars()
     keymap = {
         "TAVILY_SEARCH_API_KEY": "tavily_search_api_key",
@@ -242,6 +243,7 @@ def instantiate_llama_stack_client(session):
         # Strip the "server:" prefix first
         config_part = config[7:]  # len("server:") == 7
 
+        # Check for :: (distro::runfile format)
         if "::" in config_part:
             config_name = config_part
             port = int(os.environ.get("LLAMA_STACK_PORT", DEFAULT_PORT))
@@ -258,6 +260,7 @@ def instantiate_llama_stack_client(session):
             print(f"Forcing restart of the server on port {port}")
             stop_server_on_port(port)
 
+        # Check if port is available
         if is_port_available(port):
             print(f"Starting llama stack server with config '{config_name}' on port {port}...")
 

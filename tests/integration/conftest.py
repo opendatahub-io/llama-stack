@@ -82,6 +82,7 @@ def _track_test_context(request):
 
 
 def pytest_runtest_teardown(item):
+    # Check if the test actually ran and passed or failed, but was not skipped or an expected failure (xfail)
     outcome = getattr(item, "execution_outcome", None)
     was_xfail = getattr(item, "was_xfail", False)
 

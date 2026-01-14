@@ -452,6 +452,7 @@ def _convert_string_to_proper_type(value: str) -> Any:
     # This might be tricky depending on what the config type is, if  'str | None' we are
     # good, if 'str' we need to keep the empty string... 'str | None' is more common and
     # providers config should be typed this way.
+    # TODO: we could try to load the config class and see if the config has a field with type 'str | None'
     # and then convert the empty string to None or not
     if value == "":
         return None
