@@ -21,10 +21,7 @@ from llama_stack.providers.utils.memory.vector_store import (
     EmbeddingIndex,
     VectorStoreWithIndex,
 )
-from llama_stack.providers.utils.vector_io.vector_utils import (
-    load_embedded_chunk_with_backward_compat,
-    sanitize_collection_name,
-)
+from llama_stack.providers.utils.vector_io.vector_utils import sanitize_collection_name
 from llama_stack_api import (
     EmbeddedChunk,
     Files,
@@ -41,7 +38,6 @@ from llama_stack_api.internal.kvstore import KVStore
 from .config import MilvusVectorIOConfig as RemoteMilvusVectorIOConfig
 
 logger = get_logger(name=__name__, category="vector_io::milvus")
-
 
 VERSION = "v3"
 VECTOR_DBS_PREFIX = f"vector_stores:milvus:{VERSION}::"
@@ -69,9 +65,10 @@ class MilvusIndex(EmbeddingIndex):
         if await asyncio.to_thread(self.client.has_collection, self.collection_name):
             await asyncio.to_thread(self.client.drop_collection, collection_name=self.collection_name)
 
-    async def add_chunks(self, chunks: list[EmbeddedChunk]):
-        if not chunks:
-            return
+    async def add_chunks(self, chunks: list[EmbeddedChunk], embeddings: NDArray):
+        assert len(chunks) == len(embeddings), (
+            f"Chunk length {len(chunks)} does not match embedding length {len(embeddings)}"
+        )
 
         if not await asyncio.to_thread(self.client.has_collection, self.collection_name):
             logger.info(f"Creating new collection {self.collection_name} with nullable sparse field")
@@ -84,7 +81,7 @@ class MilvusIndex(EmbeddingIndex):
                 max_length=65535,
                 enable_analyzer=True,  # Enable text analysis for BM25
             )
-            schema.add_field(field_name="vector", datatype=DataType.FLOAT_VECTOR, dim=len(chunks[0].embedding))
+            schema.add_field(field_name="vector", datatype=DataType.FLOAT_VECTOR, dim=len(embeddings[0]))
             schema.add_field(field_name="chunk_content", datatype=DataType.JSON)
             # Add sparse vector field for BM25 (required by the function)
             schema.add_field(field_name="sparse", datatype=DataType.SPARSE_FLOAT_VECTOR)
@@ -113,12 +110,12 @@ class MilvusIndex(EmbeddingIndex):
             )
 
         data = []
-        for chunk in chunks:
+        for chunk, embedding in zip(chunks, embeddings, strict=False):
             data.append(
                 {
                     "chunk_id": chunk.chunk_id,
                     "content": chunk.content,
-                    "vector": chunk.embedding,  # Already a list[float]
+                    "vector": embedding,
                     "chunk_content": chunk.model_dump(),
                     # sparse field will be handled by BM25 function automatically
                 }
@@ -139,7 +136,7 @@ class MilvusIndex(EmbeddingIndex):
             output_fields=["*"],
             search_params={"params": {"radius": score_threshold}},
         )
-        chunks = [load_embedded_chunk_with_backward_compat(res["entity"]["chunk_content"]) for res in search_res[0]]
+        chunks = [EmbeddedChunk(**res["entity"]["chunk_content"]) for res in search_res[0]]
         scores = [res["distance"] for res in search_res[0]]
         return QueryChunksResponse(chunks=chunks, scores=scores)
 
@@ -166,7 +163,7 @@ class MilvusIndex(EmbeddingIndex):
             chunks = []
             scores = []
             for res in search_res[0]:
-                chunk = load_embedded_chunk_with_backward_compat(res["entity"]["chunk_content"])
+                chunk = EmbeddedChunk(**res["entity"]["chunk_content"])
                 chunks.append(chunk)
                 scores.append(res["distance"])  # BM25 score from Milvus
 
@@ -194,7 +191,7 @@ class MilvusIndex(EmbeddingIndex):
             output_fields=["*"],
             limit=k,
         )
-        chunks = [load_embedded_chunk_with_backward_compat(res["chunk_content"]) for res in search_res]
+        chunks = [EmbeddedChunk(**res["chunk_content"]) for res in search_res]
         scores = [1.0] * len(chunks)  # Simple binary score for text search
         return QueryChunksResponse(chunks=chunks, scores=scores)
 
@@ -246,7 +243,7 @@ class MilvusIndex(EmbeddingIndex):
         chunks = []
         scores = []
         for res in search_res[0]:
-            chunk = load_embedded_chunk_with_backward_compat(res["entity"]["chunk_content"])
+            chunk = EmbeddedChunk(**res["entity"]["chunk_content"])
             chunks.append(chunk)
             scores.append(res["distance"])
 

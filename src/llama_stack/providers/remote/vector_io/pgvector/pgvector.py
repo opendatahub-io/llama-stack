@@ -18,11 +18,7 @@ from llama_stack.log import get_logger
 from llama_stack.providers.utils.inference.prompt_adapter import interleaved_content_as_str
 from llama_stack.providers.utils.memory.openai_vector_store_mixin import OpenAIVectorStoreMixin
 from llama_stack.providers.utils.memory.vector_store import ChunkForDeletion, EmbeddingIndex, VectorStoreWithIndex
-from llama_stack.providers.utils.vector_io.vector_utils import (
-    WeightedInMemoryAggregator,
-    load_embedded_chunk_with_backward_compat,
-    sanitize_collection_name,
-)
+from llama_stack.providers.utils.vector_io.vector_utils import WeightedInMemoryAggregator, sanitize_collection_name
 from llama_stack_api import (
     EmbeddedChunk,
     Files,
@@ -134,18 +130,19 @@ class PGVectorIndex(EmbeddingIndex):
             log.exception(f"Error creating PGVectorIndex for vector_store: {self.vector_store.identifier}")
             raise RuntimeError(f"Error creating PGVectorIndex for vector_store: {self.vector_store.identifier}") from e
 
-    async def add_chunks(self, chunks: list[EmbeddedChunk]):
-        if not chunks:
-            return
+    async def add_chunks(self, chunks: list[EmbeddedChunk], embeddings: NDArray):
+        assert len(chunks) == len(embeddings), (
+            f"Chunk length {len(chunks)} does not match embedding length {len(embeddings)}"
+        )
 
         values = []
-        for chunk in chunks:
+        for i, chunk in enumerate(chunks):
             content_text = interleaved_content_as_str(chunk.content)
             values.append(
                 (
                     f"{chunk.chunk_id}",
                     Json(chunk.model_dump()),
-                    chunk.embedding,  # Already a list[float]
+                    embeddings[i].tolist(),
                     content_text,
                     content_text,  # Pass content_text twice - once for content_text column, once for to_tsvector function. Eg. to_tsvector(content_text) = tokenized_content
                 )
@@ -197,7 +194,7 @@ class PGVectorIndex(EmbeddingIndex):
                 score = 1.0 / float(dist) if dist != 0 else float("inf")
                 if score < score_threshold:
                     continue
-                chunks.append(load_embedded_chunk_with_backward_compat(doc))
+                chunks.append(EmbeddedChunk(**doc))
                 scores.append(score)
 
             return QueryChunksResponse(chunks=chunks, scores=scores)
@@ -233,7 +230,7 @@ class PGVectorIndex(EmbeddingIndex):
             for doc, score in results:
                 if score < score_threshold:
                     continue
-                chunks.append(load_embedded_chunk_with_backward_compat(doc))
+                chunks.append(EmbeddedChunk(**doc))
                 scores.append(float(score))
 
             return QueryChunksResponse(chunks=chunks, scores=scores)
@@ -309,8 +306,7 @@ class PGVectorIndex(EmbeddingIndex):
         """Remove a chunk from the PostgreSQL table."""
         chunk_ids = [c.chunk_id for c in chunks_for_deletion]
         with self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
-            # Fix: Use proper tuple parameter binding with explicit array cast
-            cur.execute(f"DELETE FROM {self.table_name} WHERE id = ANY(%s::text[])", (chunk_ids,))
+            cur.execute(f"DELETE FROM {self.table_name} WHERE id = ANY(%s)", (chunk_ids))
 
     def get_pgvector_search_function(self) -> str:
         return self.PGVECTOR_DISTANCE_METRIC_TO_SEARCH_FUNCTION[self.distance_metric]
