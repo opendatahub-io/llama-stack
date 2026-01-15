@@ -118,7 +118,12 @@ from .conversations import (
     RetrieveItemRequest,
     UpdateConversationRequest,
 )
-from .datasetio import DatasetIO, DatasetStore
+from .datasetio import (
+    AppendRowsRequest,
+    DatasetIO,
+    DatasetStore,
+    IterRowsRequest,
+)
 from .datasets import (
     CommonDatasetFields,
     Dataset,
@@ -462,10 +467,13 @@ from .scoring_functions import (
 )
 from .shields import (
     CommonShieldFields,
+    GetShieldRequest,
     ListShieldsResponse,
+    RegisterShieldRequest,
     Shield,
     ShieldInput,
     Shields,
+    UnregisterShieldRequest,
 )
 from .tools import (
     ListToolDefsResponse,
@@ -595,6 +603,8 @@ __all__ = [
     "DatasetNotFoundError",
     "DatasetStore",
     "DatasetType",
+    "AppendRowsRequest",
+    "IterRowsRequest",
     "Datasets",
     "DatasetsProtocolPrivate",
     "DefaultRAGQueryGeneratorConfig",
@@ -929,6 +939,9 @@ __all__ = [
     "ShieldStore",
     "Shields",
     "ShieldsProtocolPrivate",
+    "GetShieldRequest",
+    "RegisterShieldRequest",
+    "UnregisterShieldRequest",
     "SpecialToolGroup",
     "StrictJsonType",
     "StringType",
