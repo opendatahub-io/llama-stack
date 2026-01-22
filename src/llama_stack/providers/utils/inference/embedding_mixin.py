@@ -82,7 +82,7 @@ class SentenceTransformerEmbeddingMixin:
         if loaded_model is not None:
             return loaded_model
 
-        log.info(f"Loading sentence transformer for {model}...")
+        log.info(f"Loading sentence transformer for {model}, with trust_remote_code=False for security")
 
         def _load_model():
             from sentence_transformers import SentenceTransformer
@@ -94,7 +94,7 @@ class SentenceTransformerEmbeddingMixin:
                 log.debug(f"Constraining torch threads on {platform_name} to a single worker")
                 torch.set_num_threads(1)
 
-            return SentenceTransformer(model, trust_remote_code=True)
+            return SentenceTransformer(model, trust_remote_code=False)
 
         loaded_model = await asyncio.to_thread(_load_model)
         EMBEDDING_MODELS[model] = loaded_model
