@@ -44,6 +44,7 @@ package-dir = {"llama_stack_api" = "."}
 # WARNING: Update this list when adding/removing API directories (e.g., new FastAPI routers)
 packages = [
     "llama_stack_api.admin",
+    "llama_stack_api.agents",
     "llama_stack_api.batches",
     "llama_stack_api.benchmarks",
     "llama_stack_api.common",
@@ -69,7 +70,6 @@ packages = [
 # Because of package-dir above, these will be placed INSIDE the llama_stack_api folder.
 # WARNING: Update this list when adding/removing root-level .py files
 py-modules = [
-    "llama_stack_api.agents",
     "llama_stack_api.connectors",
     "llama_stack_api.datatypes",
     "llama_stack_api.inference",
