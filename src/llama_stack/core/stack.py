@@ -108,6 +108,7 @@ RESOURCES = [
     ),
     ("benchmarks", Api.benchmarks, "register_benchmark", "list_benchmarks", RegisterBenchmarkRequest),
     ("tool_groups", Api.tool_groups, "register_tool_group", "list_tool_groups", None),
+    ("vector_stores", Api.vector_stores, "register_vector_store", "list_vector_stores", None),
 ]
 
 
@@ -620,7 +621,7 @@ class Stack:
     async def shutdown(self):
         for impl in self.impls.values():
             impl_name = impl.__class__.__name__
-            logger.info(f"Shutting down {impl_name}")
+            logger.debug(f"Shutting down {impl_name}")
             try:
                 if hasattr(impl, "shutdown"):
                     await asyncio.wait_for(impl.shutdown(), timeout=5)
@@ -641,6 +642,20 @@ class Stack:
         global REGISTRY_REFRESH_TASK
         if REGISTRY_REFRESH_TASK:
             REGISTRY_REFRESH_TASK.cancel()
+
+        # Shutdown storage backends
+        from llama_stack.core.storage.kvstore.kvstore import shutdown_kvstore_backends
+        from llama_stack.core.storage.sqlstore.sqlstore import shutdown_sqlstore_backends
+
+        try:
+            await shutdown_kvstore_backends()
+        except Exception as e:
+            logger.exception(f"Failed to shutdown KV store backends: {e}")
+
+        try:
+            await shutdown_sqlstore_backends()
+        except Exception as e:
+            logger.exception(f"Failed to shutdown SQL store backends: {e}")
 
 
 async def refresh_registry_once(impls: dict[Api, Any]):
