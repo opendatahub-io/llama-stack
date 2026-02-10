@@ -10,7 +10,7 @@ required-version = ">=0.7.0"
 
 [project]
 name = "llama_stack"
-dynamic = ["version"]
+version = "0.5.0+rhai0"
 authors = [{ name = "Meta Llama", email = "llama-oss@meta.com" }]
 description = "Llama Stack"
 readme = "README.md"
