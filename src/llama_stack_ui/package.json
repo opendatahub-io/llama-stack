@@ -1,6 +1,6 @@
 {
   "name": "llama-stack-ui",
-  "version": "0.5.0+rhai0",
+  "version": "0.5.0.1+rhai0",
   "description": "Web UI for Llama Stack",
   "license": "MIT",
   "author": "Llama Stack <llamastack@meta.com>",
