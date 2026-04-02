@@ -1,0 +1,81 @@
+name: Create release tag
+
+run-name: Create tag from version in pyproject.toml
+
+on:
+  push:
+    branches:
+      - "release-*"
+    paths:
+      - "pyproject.toml"
+
+permissions: {}
+
+jobs:
+  create-tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Extract project version from pyproject.toml
+        id: extract-project-version
+        run: |
+          PROJECT_VERSION=$(python3 -c '
+          import sys, tomllib
+
+          with open("pyproject.toml", "rb") as f:
+              data = tomllib.load(f)
+
+          project = data.get("project", {})
+
+          if "version" in project.get("dynamic", []):
+              print("version is listed in [project.dynamic] -- it must be set to a fixed value on release branches", file=sys.stderr)
+              sys.exit(1)
+
+          version = project.get("version")
+          if not version:
+              print("No version field found in [project] section of pyproject.toml", file=sys.stderr)
+              sys.exit(1)
+
+          print(version)
+          ')
+
+          if ! echo "${PROJECT_VERSION}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?(\+rhaiv\.[0-9]+)?$'; then
+            echo "::error::Invalid version format: ${PROJECT_VERSION}"
+            exit 1
+          fi
+
+          echo "project-version=${PROJECT_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Extracted project version: ${PROJECT_VERSION}"
+
+      - name: Configure git credentials
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          git remote set-url origin "https://x-access-token:${RELEASE_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+      - name: Check if tag already exists
+        id: check
+        env:
+          TAG: v${{ steps.extract-project-version.outputs.project-version }}
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" > /dev/null 2>&1; then
+            echo "::error::Tag ${TAG} already exists"
+            exit 1
+          fi
+          echo "Tag ${TAG} does not exist -- proceeding"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push tag
+        id: create-tag
+        env:
+          TAG: ${{ steps.check.outputs.tag }}
+        run: |
+          git tag "${TAG}"
+          git push origin "${TAG}"
+          echo "Successfully created and pushed tag ${TAG}"

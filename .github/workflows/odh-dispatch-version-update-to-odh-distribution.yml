@@ -1,0 +1,30 @@
+name: Dispatch Version Update to ODH Distribution
+
+run-name: "Dispatch version update to llama-stack-distribution (${{ github.ref_name }})"
+
+on:
+  push:
+    tags:
+      - 'v*\+rhaiv.*'
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send repository dispatch to llama-stack-distribution
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          SOURCE_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          echo "Dispatching update-llama-stack-version with tag: ${TAG}"
+
+          gh api repos/opendatahub-io/llama-stack-distribution/dispatches \
+            -f event_type=update-llama-stack-version \
+            -f "client_payload[tag]=${TAG}" \
+            -f "client_payload[source_run_url]=${SOURCE_RUN_URL}"
+
+          echo "Dispatch sent successfully"
