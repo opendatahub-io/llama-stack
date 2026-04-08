@@ -17,6 +17,10 @@ Llama Stack uses GitHub Actions for Continuous Integration (CI). Below is a tabl
 | SqlStore Integration Tests | [integration-sql-store-tests.yml](integration-sql-store-tests.yml) | Run the integration test suite with SqlStore |
 | Integration Tests (Replay) | [integration-tests.yml](integration-tests.yml) | Run the integration test suites from tests/integration in replay mode |
 | Vector IO Integration Tests | [integration-vector-io-tests.yml](integration-vector-io-tests.yml) | Run the integration test suite with various VectorIO providers |
+| Create release tag | [odh-create-tag.yml](odh-create-tag.yml) | Create tag from version in pyproject.toml |
+| Dispatch Version Update to ODH Distribution | [odh-dispatch-version-update-to-odh-distribution.yml](odh-dispatch-version-update-to-odh-distribution.yml) | Dispatch version update to llama-stack-distribution (${{ github.ref_name }}) |
+| Trigger GitLab Release Branch Pipeline | [odh-trigger-gitlab-release-branch.yml](odh-trigger-gitlab-release-branch.yml) | Trigger GitLab release branch creation for ${{ github.ref_name }} |
+| Trigger GitLab Update Release Branch Dependencies | [odh-trigger-gitlab-update-deps.yml](odh-trigger-gitlab-update-deps.yml) | Trigger GitLab dependency update for ${{ github.ref_name }} |
 | OpenAPI Generator SDK Validation | [openapi-generator-validation.yml](openapi-generator-validation.yml) | Validate OpenAPI Generator SDK generation |
 | OpenResponses Conformance Tests | [openresponses-conformance.yml](openresponses-conformance.yml) | Run OpenResponses conformance tests against llama-stack Responses API |
 | Post-release automation | [post-release.yml](post-release.yml) | Post-release automation |
