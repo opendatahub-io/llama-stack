@@ -13,7 +13,7 @@ constraint-dependencies = [
 
 [project]
 name = "llama_stack"
-version = "0.7.1+rhaiv.0"
+version = "0.7.1+rhaiv.1"
 authors = [{ name = "Meta Llama", email = "llama-oss@meta.com" }]
 description = "Open-source, OpenAI-compatible API server with pluggable providers for any model and any infrastructure"
 readme = "README.md"
@@ -68,7 +68,7 @@ dependencies = [
 
 [project.optional-dependencies]
 client = [
-    "llama-stack-client==0.7.1", # Optional for library-only usage
+    "llama-stack-client==0.7.2", # Optional for library-only usage
 ]
 starter = [
     "aiohttp",
@@ -172,7 +172,7 @@ type_checking = [
     "lm-format-enforcer",
     "mcp>=1.23.0",
     "ollama",
-    "llama-stack-client==0.7.1",
+    "llama-stack-client==0.7.2",
 ]
 # These are the dependencies required for running unit tests.
 unit = [
