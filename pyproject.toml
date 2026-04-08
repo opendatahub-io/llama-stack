@@ -13,7 +13,7 @@ constraint-dependencies = [
 
 [project]
 name = "llama_stack"
-dynamic = ["version"]
+version = "0.7.1+rhaiv.0"
 authors = [{ name = "Meta Llama", email = "llama-oss@meta.com" }]
 description = "Open-source, OpenAI-compatible API server with pluggable providers for any model and any infrastructure"
 readme = "README.md"
