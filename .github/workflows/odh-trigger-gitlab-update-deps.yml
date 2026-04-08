@@ -1,0 +1,83 @@
+name: Trigger GitLab Update Release Branch Dependencies
+
+run-name: Trigger GitLab dependency update for ${{ github.ref_name }}
+
+on:
+  push:
+    tags:
+      - 'v*\+rhaiv.*'
+
+permissions: {}
+
+jobs:
+  trigger-gitlab-pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Extract product version from release branch
+        id: extract-product-version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          # Find the release branch containing the tagged commit.
+          # If multiple match, the first lexicographically is selected.
+          RELEASE_BRANCH=$(git for-each-ref --count=1 \
+            --format='%(refname:lstrip=3)' \
+            --contains="$GITHUB_SHA" \
+            'refs/remotes/origin/release-*')
+
+          if [ -z "$RELEASE_BRANCH" ]; then
+            echo "::error::No release branch found containing tag $TAG (commit $GITHUB_SHA)"
+            exit 1
+          fi
+
+          PRODUCT_VERSION="${RELEASE_BRANCH#release-}"
+          echo "product_version=$PRODUCT_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Found release branch: $RELEASE_BRANCH (product_version: $PRODUCT_VERSION) for tag: $TAG"
+
+      - name: Trigger GitLab pipeline
+        env:
+          GITLAB_PIPELINE_TRIGGER_TOKEN: ${{ secrets.GITLAB_PIPELINE_TRIGGER_TOKEN }}
+          GITLAB_WHEEL_PIPELINE_PROJECT_ID: "71275045"
+          TAG: ${{ github.ref_name }}
+          PRODUCT_VERSION: ${{ steps.extract-product-version.outputs.product_version }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$GITLAB_PIPELINE_TRIGGER_TOKEN" ]; then
+            echo "::error::GITLAB_PIPELINE_TRIGGER_TOKEN secret is not configured"
+            exit 1
+          fi
+
+          echo "Triggering GitLab pipeline to update dependencies for product_version: $PRODUCT_VERSION, tag: $TAG"
+
+          HTTP_STATUS=$(curl --silent --show-error --output response.json \
+            --write-out "%{http_code}" \
+            --connect-timeout 10 \
+            --max-time 60 \
+            --retry 3 \
+            --retry-delay 5 \
+            --retry-connrefused \
+            -X POST \
+            --form-string "token=$GITLAB_PIPELINE_TRIGGER_TOKEN" \
+            --form-string "ref=main" \
+            --form-string "variables[PIPELINE]=update-release-branch-dependencies" \
+            --form-string "variables[TAG]=$TAG" \
+            --form-string "variables[PRODUCT_VERSION]=$PRODUCT_VERSION" \
+            "https://gitlab.com/api/v4/projects/$GITLAB_WHEEL_PIPELINE_PROJECT_ID/trigger/pipeline")
+          RESPONSE_BODY=$(cat response.json)
+
+          if [ "$HTTP_STATUS" -ne 201 ]; then
+            echo "::error::Failed to trigger GitLab pipeline. HTTP status: $HTTP_STATUS"
+            echo "Response body: $RESPONSE_BODY"
+            exit 1
+          fi
+
+          echo "GitLab pipeline triggered successfully for product_version: $PRODUCT_VERSION, tag: $TAG"

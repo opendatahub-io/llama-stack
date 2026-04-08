@@ -1,0 +1,65 @@
+name: Trigger GitLab Release Branch Pipeline
+
+run-name: Trigger GitLab release branch creation for ${{ github.ref_name }}
+
+on:
+  create:
+
+permissions: {}
+
+jobs:
+  trigger-gitlab-pipeline:
+    if: github.ref_type == 'branch' && startsWith(github.ref_name, 'release-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Extract product version
+        id: extract-product-version
+        env:
+          BRANCH_NAME: ${{ github.ref_name }}
+        run: |
+          PRODUCT_VERSION="${BRANCH_NAME#release-}"
+          if [ -z "$PRODUCT_VERSION" ]; then
+            echo "::error::Empty product version extracted from branch: $BRANCH_NAME"
+            exit 1
+          fi
+          echo "product_version=$PRODUCT_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Extracted PRODUCT_VERSION: $PRODUCT_VERSION from branch: $BRANCH_NAME"
+
+      - name: Trigger GitLab pipeline
+        env:
+          GITLAB_PIPELINE_TRIGGER_TOKEN: ${{ secrets.GITLAB_PIPELINE_TRIGGER_TOKEN }}
+          GITLAB_WHEEL_PIPELINE_PROJECT_ID: "71275045"
+          PRODUCT_VERSION: ${{ steps.extract-product-version.outputs.product_version }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$GITLAB_PIPELINE_TRIGGER_TOKEN" ]; then
+            echo "::error::GITLAB_PIPELINE_TRIGGER_TOKEN secret is not configured"
+            exit 1
+          fi
+
+          echo "Triggering GitLab pipeline to create release branch for PRODUCT_VERSION: $PRODUCT_VERSION"
+
+          HTTP_STATUS=$(curl --silent --show-error --output response.json \
+            --write-out "%{http_code}" \
+            --connect-timeout 10 \
+            --max-time 60 \
+            --retry 3 \
+            --retry-delay 5 \
+            --retry-connrefused \
+            -X POST \
+            --form-string "token=$GITLAB_PIPELINE_TRIGGER_TOKEN" \
+            --form-string "ref=main" \
+            --form-string "variables[PIPELINE]=create-release-branch" \
+            --form-string "variables[PRODUCT_VERSION]=$PRODUCT_VERSION" \
+            "https://gitlab.com/api/v4/projects/$GITLAB_WHEEL_PIPELINE_PROJECT_ID/trigger/pipeline")
+          RESPONSE_BODY=$(cat response.json)
+
+          if [ "$HTTP_STATUS" -ne 201 ]; then
+            echo "::error::Failed to trigger GitLab pipeline. HTTP status: $HTTP_STATUS"
+            echo "Response body: $RESPONSE_BODY"
+            exit 1
+          fi
+
+          echo "GitLab pipeline triggered successfully for PRODUCT_VERSION: $PRODUCT_VERSION"
