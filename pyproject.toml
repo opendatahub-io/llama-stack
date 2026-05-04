@@ -124,6 +124,7 @@ starter = [
     "weaviate-client>=4.16.5",
     "torch",
     "sentence-transformers",
+    "boto3",
 ]
 
 [dependency-groups]
